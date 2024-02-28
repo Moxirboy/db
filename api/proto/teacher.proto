@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package teacher;
+
+option go_package = "../../teacher/proto/teacher";
+
+message AddTestRequest {
+  string QuestionId = 1;
+  string QuestionText = 2;
+  string TeacherID = 3;
+  string AnswerID = 4;
+  string ChoiceID = 5;
+}
+
+message CreateClass {
+  string ID = 1;
+  string TeacherID = 2;
+  string ClassID = 3;
+  string Period = 4;
+}
+
+message Response {
+  string Id = 1;
+}
+message Class {
+  string teacherID = 1;
+  string name=2;
+  string password=3;
+}
+message Exam {
+  string teacherID = 1;
+  string name = 2;
+}
+message Tests{
+  string teacherID = 1;
+  repeated Test tests = 2;
+
+}
+message Test {
+  string questionText = 1;
+  repeated choice choices = 2;
+  string answer = 3;
+}
+
+message choice {
+  string choiceText = 1;
+  bool isAnswer = 2;
+}
+message Res {
+}
+service TeacherService {
+  rpc CreateTest(Tests) returns (Res);
+  rpc CreateExam(Exam) returns (Response);
+  rpc ClassCreate(Class) returns (Response);
+
+}
+

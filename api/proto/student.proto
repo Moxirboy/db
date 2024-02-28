@@ -1,0 +1,36 @@
+syntax="proto3";
+
+package auth;
+
+option go_package = "../../apigateway/proto/exam";
+
+service TestService {
+    rpc TakeExamQuestions(TestTake) returns (TestResponse) {}
+    rpc GetExamExist(IdRequest) returns (IdResponse) {}
+}
+
+message Test {
+    string id=1;
+    string question=2;
+    repeated Choices choices=3;
+    string answer=4;
+}
+message Choices {
+    string Id=1;
+    string choices=2;
+    bool is_correct=3;
+}
+message TestResponse{
+    repeated Test test=1;
+}
+message TestTake{
+    string exam_id=1;
+}
+
+message IdRequest{
+    string id=1;
+}
+message IdResponse {
+    bool exist=1;
+    string id=2;
+}

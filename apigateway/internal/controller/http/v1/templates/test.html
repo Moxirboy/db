@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz</title>
+<style>
+  /* Styling for timer */
+  #timer {
+    position: sticky;
+    top: 0;
+    background-color: #fff;
+    padding: 10px 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    text-align: center;
+    font-size: 20px;
+    z-index: 1000;
+  }
+
+  /* Styling for question boxes */
+  .question-box {
+    background-color: #f5f5f5; /* Milk background color */
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 5px 5px 10px purple; /* Purple shadow */
+    border-radius: 10px;
+  }
+
+  /* Styling for questions */
+  .question-text {
+    font-weight: bold; /* Bold font for questions */
+  }
+
+  /* Styling for buttons */
+  .btn {
+    margin-top: 20px;
+    background-color: purple;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  .btn:hover {
+    background-color: darkpurple;
+  }
+
+  /* Styling for results */
+  #results {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #f5f5f5;
+    box-shadow: 5px 5px 10px purple;
+    border-radius: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div id="timer">50:00</div>
+<div id="quiz"></div>
+
+<button id="submitBtn" class="btn" onclick="submitQuiz()">Submit</button>
+
+<div id="results"></div>
+
+<script>
+  var selectedChoices = {}; // Object to store selected choices
+  var questions; // Variable to store quiz questions
+  var timerValue = localStorage.getItem('timerValue') || 3000; // 50 minutes in seconds
+
+  // Function to fetch quiz data from backend or retrieve from local storage
+  async function fetchQuizData() {
+    try {
+      var cachedQuestions = localStorage.getItem('quizQuestions');
+      if (cachedQuestions) {
+        questions = JSON.parse(cachedQuestions);
+        renderQuiz(questions);
+      } else {
+        const response = await fetch('http://localhost:5005/v1/student/questions');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        questions = await response.json();
+        localStorage.setItem('quizQuestions', JSON.stringify(questions));
+        renderQuiz(questions);
+      }
+    } catch (error) {
+      console.error('Error fetching quiz data:', error);
+    }
+  }
+
+  // Function to render quiz
+  function renderQuiz(questions) {
+    questions.forEach(function(question, index) {
+      var questionDiv = document.createElement('div');
+      questionDiv.classList.add('question-box'); // Add question-box class
+      questionDiv.innerHTML = '<p class="question-text">Question ' + (index + 1) + ': ' + question.text + '</p>';
+      var choicesDiv = document.createElement('div');
+      question.Choices.forEach(function(choice) {
+        var choiceLabel = document.createElement('label');
+        var choiceId = 'question_' + question.id;
+        var isChecked = selectedChoices[choiceId] === choice.id;
+        choiceLabel.innerHTML = '<input type="radio" name="' + choiceId + '" value="' + choice.id + '"' + (isChecked ? ' checked' : '') + '> ' + choice.choiceText;
+        choicesDiv.appendChild(choiceLabel);
+        choicesDiv.appendChild(document.createElement('br'));
+      });
+      questionDiv.appendChild(choicesDiv);
+      document.getElementById('quiz').appendChild(questionDiv);
+    });
+  }
+
+  // Function to handle form submission
+  function submitQuiz() {
+    var results = calculateResults();
+    displayResults(results);
+    // Clear local storage
+    localStorage.clear();
+  }
+
+  // Function to calculate quiz results
+  function calculateResults() {
+    var results = {
+      totalQuestions: 0,
+      correctAnswers: 0,
+      incorrectAnswers: 0
+    };
+    questions.forEach(function(question) {
+      question.Choices.forEach(function(choice) {
+        var choiceId = 'question_' + question.id;
+        if (selectedChoices[choiceId] === choice.id) {
+          results.totalQuestions++;
+          if (choice.is_correct) {
+            results.correctAnswers++;
+          } else {
+            results.incorrectAnswers++;
+          }
+        }
+      });
+    });
+    return results;
+  }
+
+  // Function to display quiz results
+  function displayResults(results) {
+    var resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = '<h2>Quiz Results</h2>';
+    resultsDiv.innerHTML += '<p>Total Questions: ' + results.totalQuestions + '</p>';
+    resultsDiv.innerHTML += '<p>Correct Answers: ' + results.correctAnswers + '</p>';
+    resultsDiv.innerHTML += '<p>Incorrect Answers: ' + results.incorrectAnswers + '</p>';
+  }
+
+  // Function to handle radio button change (selection of choice)
+  document.addEventListener('change', function(event) {
+    if (event.target.type === 'radio') {
+      var questionId = event.target.name;
+      var choiceId = event.target.value;
+      selectedChoices[questionId] = choiceId; // Update selected choices object
+    }
+  });
+
+  // Call fetchQuizData when page loads
+  window.onload = function() {
+    fetchQuizData();
+    var cachedChoices = localStorage.getItem('selectedChoices');
+    if (cachedChoices) {
+      selectedChoices = JSON.parse(cachedChoices);
+      // Restore selected choices on page load
+      Object.keys(selectedChoices).forEach(function(questionId) {
+        var choiceId = selectedChoices[questionId];
+        var radioBtn = document.querySelector('input[name="' + questionId + '"][value="' + choiceId + '"]');
+        if (radioBtn) {
+          radioBtn.checked = true;
+        }
+      });
+    }
+    startTimer(); // Start the timer when the page loads
+  };
+
+  // Clear local storage when the page is closed
+  window.addEventListener('beforeunload', function() {
+    localStorage.clear();
+  });
+
+  // Timer functionality
+  var timerElement = document.getElementById('timer');
+  var timerInterval;
+
+  function updateTimer() {
+    var minutes = Math.floor(timerValue / 60);
+    var seconds = timerValue % 60;
+    var displayMinutes = minutes < 10 ? '0' + minutes : minutes;
+    var displaySeconds = seconds < 10 ? '0' + seconds : seconds;
+    timerElement.textContent = displayMinutes + ':' + displaySeconds;
+    timerValue--;
+    localStorage.setItem('timerValue', timerValue);
+    if (timerValue < 0) {
+      clearInterval(timerInterval);
+      submitQuiz(); // Automatically submit quiz when time is over
+    }
+  }
+
+  function startTimer() {
+    updateTimer(); // Update timer immediately
+    timerInterval = setInterval(updateTimer, 1000);
+  }
+</script>
+
+</body>
+</html>

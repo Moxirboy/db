@@ -1,0 +1,6 @@
+package postgres
+
+const (
+	// GetClass
+
+)
